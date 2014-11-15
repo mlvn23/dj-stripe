@@ -484,6 +484,7 @@ class Customer(StripeObject):
         if sub:
             try:
                 sub_obj = self.current_subscription
+                sub_obj.stripe_id = sub.id
                 sub_obj.plan = plan_from_stripe_id(sub.plan.id)
                 sub_obj.current_period_start = convert_tstamp(
                     sub.current_period_start
@@ -501,6 +502,7 @@ class Customer(StripeObject):
             except CurrentSubscription.DoesNotExist:
                 sub_obj = CurrentSubscription.objects.create(
                     customer=self,
+                    stripe_id = sub.id,
                     plan=plan_from_stripe_id(sub.plan.id),
                     current_period_start=convert_tstamp(
                         sub.current_period_start
@@ -608,6 +610,7 @@ class CurrentSubscription(TimeStampedModel):
         related_name="current_subscription",
         null=True
     )
+    stripe_id = models.CharField(max_length=50)
     plan = models.CharField(max_length=100)
     quantity = models.IntegerField()
     start = models.DateTimeField()
@@ -698,6 +701,7 @@ class Invoice(TimeStampedModel):
             defaults=dict(
                 customer=c,
                 attempted=stripe_invoice["attempted"],
+                attempts=stripe_invoice["attempt_count"],
                 closed=stripe_invoice["closed"],
                 paid=stripe_invoice["paid"],
                 period_end=period_end,
@@ -711,6 +715,7 @@ class Invoice(TimeStampedModel):
         if not created:
             # pylint: disable=C0301
             invoice.attempted = stripe_invoice["attempted"]
+            invoice.attempts = stripe_invoice["attempt_count"]
             invoice.closed = stripe_invoice["closed"]
             invoice.paid = stripe_invoice["paid"]
             invoice.period_end = period_end
